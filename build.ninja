@@ -1,0 +1,16 @@
+ldflags = -lopencv_core -lopencv_highgui -lopencv_imgproc
+
+rule latex
+        command = pdflatex ${in} -o ${out}
+
+rule dot
+        command = dot -Tpdf ${in} -o ${out}
+        
+rule fdp
+        command = fdp -Tpdf ${in} -o ${out}
+
+build hardware_overview.pdf: fdp hardware_overview.dot
+build software_overview.pdf: dot software_overview.dot
+build kiss_ide.pdf: dot kiss_ide.dot
+build a_look_inside_the_kipr_link.pdf: latex a_look_inside_the_kipr_link.tex 
+
