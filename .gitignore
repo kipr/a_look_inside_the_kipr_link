@@ -1,5 +1,6 @@
 *.out
-*.pdf
+*_ide.pdf
+*_overview.pdf
 *.aux
 *.toc
 *.synctex.gz

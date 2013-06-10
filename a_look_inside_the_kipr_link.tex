@@ -11,6 +11,7 @@
 \usepackage[usenames,dvipsnames,svgnames,table]{xcolor}
 \usepackage{wrapfig}
 \usepackage{textcomp}
+\usepackage{amssymb}
 
 \pagestyle{empty}
 
@@ -248,7 +249,8 @@
 	\texttt{Unit}. A \texttt{Unit} is an abstract class that uses the visitor pattern to create in-memory project and source file archives.
 	For example, imagine the existence of a project called ``Task1'' that contains three source files: \texttt{foo.c}, \texttt{bar.h}, and 
 	\texttt{baz.c}. 
-	Now imagine that the user invokes a \emph{download} command on the source file \texttt{foo.c}. \texttt{foo.c} will ask that its 	\texttt{Unit} invoke a \emph{download} command on the top-level \texttt{Unit}, which is Task1. Task1's unit will then create an empty archive,
+	Now imagine that the user invokes a \emph{download} command on the source file \texttt{foo.c}. \texttt{foo.c} will ask that its
+	\texttt{Unit} invoke a \emph{download} command on the top-level \texttt{Unit}, which is Task1. Task1's unit will then create an empty archive,
 	add project files to it, and \emph{visit} its children \texttt{Unit}s recursively. A child \texttt{Unit} may then add its required files
 	to the archive. Once this recursive process finishes, the completed archive is sent wrapped in a \texttt{CommunicationEntry} and queued in
 	the \texttt{CommunicationManager}. The \texttt{CommunicationManager} then handles non-blocking execution of the task on the given target.
@@ -281,7 +283,7 @@
 	\section{Building Firmwares and Packages}
 	There is unfortunately no easy way to build firmwares and packages for the Link at this time. This section will, however, describe how
 	to do it the hard way (and the way KIPR does it internally). The Link is based off of a linux distribution system called \emph{OpenEmbedded}
-	and its associated build system called \emph{bitbake}. While these tools have improved dramatically in recent months and years, the Link's
+	and its associated build system called \texttt{bitbake}. While these tools have improved dramatically in recent months and years, the Link's
 	build system has not been updated yet. As such, there will be little to no relevant documentation available to assist in the creation
 	of packages or firmwares, and most software available in OpenEmbedded's local repository will be outdated. Fortunately, KIPR has shed most of
 	the tears of frustration on the reader's behalf. What follows is a guide on setting up a build server and modifying pieces of KIPR's software.
@@ -315,6 +317,9 @@
 	}
 	
 	\textbf{Insert Clemens' instructions once they are ready}
+	
+	\subsection{Core Concepts in OpenEmbedded and \texttt{bitbake}}
+	OpenEmbedded organizes build \emph{recipes} into ``meta'' \emph{layers}. 
 	
 	\subsection{Modifying an Existing Package}
 	
@@ -365,15 +370,37 @@
 	a Link build server.
 	
 	\section{Modification Checklists}
-	This section hopes to provide checklists for certain modifications that would need to be implemented
+	When creating a component for the Link, there are often several steps that are often obscure and non-obvious. These checklists
+	hope create a discrete list of steps for common Link modifications a developer might want to perform.
+	
+	\subsection{Adding Support For a New Language}
+	\begin{itemize}
+		\setlength{\itemsep}{0em}
+		\renewcommand{\labelitemi}{$\square$} 
+		\item Write the required \texttt{bitbake} \emph{recipes} to create binary packages for the language's compiler and libraries.
+		\item Write the necessary \texttt{pcompiler} \emph{transforms} to compile the language into a binary.
+		\item Add the language's file extension to \texttt{botui}'s \texttt{FileActionCompile} class to enable compiling from
+		the Link's embedded file manager.
+		\item Write a \texttt{Lexer} (syntax highlighter) plugin for KISS IDE.
+		\item Create a \emph{Template Pack} for KISS IDE (File$\rightarrow$New$\rightarrow$New Template Pack...).
+		\item Add the required language packages to \texttt{meta-kipr/recipes-kovan/}\\\texttt{images/kovan-kipr-image.bb} to make the language
+		a part of the official firmware.
+	\end{itemize}
+	
+	\subsection{}
+	\begin{itemize}
+		\setlength{\itemsep}{0em}
+		\renewcommand{\labelitemi}{$\square$} 
+		\item Write the required \texttt{bitbake} \emph{recipes} to create binary packages for the language's compiler and libraries.
+		\item Write the necessary \texttt{pcompiler} \emph{transforms} to compile the language into a binary.
+		\item Write a \texttt{Lexer} (syntax highlighter) plugin for KISS IDE.
+		\item Create a \emph{Template Pack} for KISS IDE (File$\rightarrow$New$\rightarrow$New Template Pack...).
+	\end{itemize}
 	
 	
-	\section{Integrating a New Language with the Link}
-	
-	\
 	
 	\section{Conclusion}
-	
+	While this document covers several pieces of the Link's firmware
 	
 	
 	\subsection{Acknowledgements}
