@@ -123,6 +123,41 @@
 	and executables to understand, provide notes on their implementation, provide examples of their usage, and describe how a developer
 	might go about modifying these packages.
 	
+	\subsection{\texttt{libkovanserial}}
+	\texttt{libkovanserial} is the communication protocol for the Link and provides a unified protocol for both USB and
+	network communication. \texttt{libkovanserial} is divided into three layers:
+	\begin{enumerate}
+		\setlength{\itemsep}{0em}
+		\item ``Transmitters'' are back-ends that implement a specific communication mechanism, such as TCP/IP sockets or USB comm ports.
+		Security is not handled on this layer.
+		\item The ``Transport Layer'' handles packet creation, checksumming, and a basic ACK/resend mechanism for non-reliable protocols such
+		as serial communication ports. Session-level security is defined on this layer.
+		\item The ``Protocol Layer'' helps facilitate protocol-level communication with the KIPR Link. This is intentionally left
+		as a somewhat leaky abstraction. User password security is implemented on this layer.
+	\end{enumerate}
+	
+	\subsubsection{Authentication Handshake}
+	\texttt{libkovanserial} uses XOR encryption with a mutual shared session key that is negotiated during handshake. XOR encryption is notoriously insecure with plain text, 
+	but the use of random data paired with cryptographically secure data makes normal XOR encryption attack vectors useless. Since the session key is a pseudo-randomly generated
+	512 bits and sessions are short lived, cracking the session key with brute force is unlikely. \texttt{libkovanserial} also goes a step further and fills empty space in
+	packets with pseudo-random bytes. This prevents sniffers from detecting the key using zeroed-out sections of packets. This handshake method guards against
+	man-in-the-middle attacks and other sniffers by XOR encrypting the session key during transmission using a private but mutual piece of information:
+	\texttt{sha1(password)}. Since the session key is 512 pseudo-random bits and the SHA1 key is a cryptographically strong hash, decoding either piece
+	of information is unlikely. A new session key is generated with every high-level command to the Link, so a
+	session key does not remain valid for more than a few seconds.
+	
+	\subsubsection{Handshake Example}
+	
+	A typical handshake looks like this:
+	\begin{enumerate}
+		\setlength{\itemsep}{0em}
+		\item Ask the server if it requires authentication. If no, \texttt{finish}. If yes, \texttt{goto 2}.
+		\item Send the server our password's MD5 hash.
+		\item Check if authentication was successful. If no, prompt user for new password and \texttt{goto 2}.
+		If yes, decrypt the session key using our password's SHA1 hash and \texttt{finish}.
+	\end{enumerate}
+	
+	
 	\subsection{The \texttt{kovan-serial} Daemon}
 	The \texttt{kovan-serial} daemon mediates all incoming connections to the Link over USB and Wi-Fi.
 	
