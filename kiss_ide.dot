@@ -1,0 +1,95 @@
+digraph kiss_ide {
+	subgraph cluster3 {
+		label="KISS IDE";
+		
+		subgraph cluster7 {
+		label="GUI";
+			MainWindow;
+			Tab0 [label="Tab"];
+			Tab1 [label="Tab"];
+			Tab2 [label="Tab"];
+			Tab3 [label="Tab"];
+			MainWindow -> Tab0;
+			MainWindow -> Tab1;
+			MainWindow -> Tab2;
+			MainWindow -> Tab3;
+			Tab3 -> DocumentationTab
+		}
+		
+		
+		subgraph cluster0 {
+			label="Independent Source File";
+			SourceFile0 [label="SourceFile"];
+			Unit0 [label="Unit"];
+			Unit0 -> SourceFile0;
+		}
+	
+		subgraph cluster1 {
+			label="Project A";
+			SourceFile1 [label="SourceFile"];
+			SourceFile2 [label="SourceFile"];
+			Unit1 [label="Unit"];
+			Unit2 [label="Unit"];
+			Unit3 [label="Unit"];
+			Unit1 -> Project;
+			Project -> Unit2 -> SourceFile1;
+			Project -> Unit3 -> SourceFile2;
+		}
+		
+		subgraph cluster5 {
+			label="Communication System";
+			CommunicationWorker0 [label=CommunicationWorker];
+			CommunicationWorker1 [label=CommunicationWorker];
+			CommunicationEntry0 [label=CommunicationEntry];
+			CommunicationEntry1 [label=CommunicationEntry];
+			InterfaceManager;
+			CommunicationManager -> CommunicationWorker0;
+			CommunicationManager -> CommunicationWorker1;
+			CommunicationWorker0 -> CommunicationEntry0;
+			CommunicationWorker1 -> CommunicationEntry1;
+		}
+	}
+	
+	subgraph cluster4 {
+		label="Kovan Plugin";
+		Target0 [label=Target];
+		Target1 [label=Target];
+		Interface -> Target0
+		Interface -> Target1
+	}
+	
+	subgraph cluster6 {
+		label="Jack's Link";
+		KovanSerial0 [label="kovan-serial"];
+		Target0 -> KovanSerial0 [dir=both style=dotted]
+	}
+	
+	subgraph cluster8 {
+		label="Jill's Link";
+		KovanSerial1 [label="kovan-serial"];
+		Target1 -> KovanSerial1 [dir=both style=dotted]
+	}
+	
+	subgraph cluster5 {
+		label="C Lexer Plugin";
+		CLexer0 [label=CLexer]
+		CLexer1 [label=CLexer]
+		CLexer2 [label=CLexer]
+		ConstructorC -> CLexer0;
+		ConstructorC -> CLexer1;
+		ConstructorC -> CLexer2;
+	}
+	
+	
+	Unit0 -> CommunicationManager// [constraint=false];
+	Unit1 -> CommunicationManager// [constraint=false];
+	CommunicationEntry0 -> Target0// [constraint=false];
+	CommunicationEntry1 -> Target1// [constraint=false];
+	InterfaceManager -> Interface //[constraint=false];
+	SourceFile0 -> CLexer0;
+	SourceFile1 -> CLexer1;
+	SourceFile2 -> CLexer2;
+	Tab0 -> SourceFile0;
+	Tab1 -> SourceFile1;
+	Tab2 -> SourceFile2;
+}

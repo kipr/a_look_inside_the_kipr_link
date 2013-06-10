@@ -1,0 +1,68 @@
+
+digraph hardware_overview {
+	overlap=scalexy;
+	splines=spline;
+	ratio=compress;
+	normalize=true;
+	rankdir=LR;
+	nodesep=.2;
+	
+	{
+		node [shape=box,fontname="Courier"];
+		"KISS IDE 1" [label="KISS IDE"];
+		"KISS IDE 2" [label="KISS IDE"];
+		"botui";
+		"user program";
+		"kovan-serial";
+		"kovan-kmod";
+		"Kovan FPGA Software";
+	}
+
+	subgraph cluster0 {
+		label="Communication Sub-System";
+		labelloc=b;
+		subgraph cluster1 {
+			label="Jack's PC";
+			labelloc=t;
+			"Remote libkovanserial 1" [label="libkovanserial"];
+			"Remote libkovanserial 1" -> "KISS IDE 1" [dir=both];
+		}
+		subgraph cluster2 {
+			label="Jill's Mac";
+			labelloc=t;
+			"Remote libkovanserial 2" [label="libkovanserial"];
+			"Remote libkovanserial 2" -> "KISS IDE 2" [dir=both];
+		}
+		libpcompiler2 [label="libpcompiler"];
+		libkar2 [label="libkar"];
+		"kovan-serial" -> "libkovanserial" [dir=both];
+		"kovan-serial" -> libpcompiler2 [dir=both];
+		"kovan-serial" -> libkar2 [dir=both];
+		"libkovanserial" -> "Remote libkovanserial 1" [label=TCP dir=both style=dotted];
+		"libkovanserial" -> "Remote libkovanserial 2" [label=USB dir=both style=dotted];
+	}
+	
+	subgraph cluster3 {
+		label="Program Sub-System";
+		"libkovan 1" [label="libkovan"];
+		"libkovan 2" [label="libkovan"];
+		libpcompiler1 [label="libpcompiler"];
+		libkar1 [label="libkar"];
+		
+		"user program" -> "libkovan 1" [dir=both];
+		botui -> "libkovan 2" [dir=both];
+		botui -> libpcompiler1 [dir=both];
+		botui -> libkar1 [dir=both];
+		"libkovan 1" -> "kovan-kmod" [dir=both label=UDP];
+		"libkovan 2" -> "kovan-kmod" [dir=both label=UDP];
+		"kovan-serial" -> botui [label="dbus" constraint=false];
+
+		"kovan-kmod" -> "Kovan FPGA Software" [label="SPI" dir=both];
+	}
+	
+	subgraph cluster4 {
+		label="Recovery Sub-System";
+		"kovan-recovery";
+	}
+	
+}

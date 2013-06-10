@@ -1,0 +1,423 @@
+\documentclass[12pt,letterpaper]{article}
+
+\usepackage[pdftex]{graphicx}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{tipa}
+\usepackage{natbib}
+\usepackage[american]{babel}
+\usepackage[margin=1in]{geometry}
+\usepackage{fancybox}
+\usepackage[usenames,dvipsnames,svgnames,table]{xcolor}
+\usepackage{wrapfig}
+\usepackage{textcomp}
+
+\pagestyle{empty}
+
+\newcommand{\urlfootnote}[1]{\footnote{\url{#1}}}
+\newcommand{\code}[1]{\par\texttt{#1}\par}
+\newcommand{\authorInfo}[1]{\gdef\authInfo{#1}}
+
+\title{A Look Inside the KIPR Link}
+\author{Braden McDorman, Joshua Southerland}
+\authorInfo{KISS Institute for Practical Robotics, University of Oklahoma \\
+	\texttt{bmcdorman@kipr.org}, \texttt{southou@gmail.com}}
+ 
+\fboxrule=2pt
+\newcommand{\bcolorbox}[4]{\noindent \\ \fcolorbox{#1}{#2} {\parbox{\textwidth}{\vspace{.1em}\textbf{#3} #4\vspace{.1em}}} \\}
+\newcommand{\whoathere}[1]{\bcolorbox{red}{MistyRose}{Hold On:}{#1}}
+\newcommand{\note}[1]{\bcolorbox{yellow}{Seashell}{Note:}{#1}}
+\newcommand{\why}[1]{\bcolorbox{black}{GhostWhite}{Why?}{#1}}
+\newcommand{\novice}[1]{\bcolorbox{green}{Honeydew}{Novice's Corner:}{#1}}
+\newcommand{\getit}[1]{\bcolorbox{Indigo}{Lavender}{Get It!}{#1}}
+
+\makeatletter
+
+
+\begin{document}
+	
+	\noindent\begin{minipage}[l]{.8\textwidth}\begin{flushleft}\begin{small}
+	\textbf{\@title}
+
+	\@author
+
+	\authInfo
+	\end{small}\end{flushleft}\end{minipage}\vspace{.25in}
+	
+	\begin{center}
+	\begin{Large}
+	\textbf{\@title}
+	\end{Large}
+	\end{center}
+	
+	\tableofcontents
+	
+	\section{Introduction}
+	The KIPR Link (herein referred to as just ``The Link'') is the fifth generation educational robotics controller used in the Botball robotics
+	competition. The Link is also the first robotics controller designed from the ground up for Botball. Since the Link runs a full linux kernel
+	and is completely open source, it is a perfect platform for modification and experimentation by more advanced users. This document hopes
+	to serve as a guide for the curious and ambitious user that wishes to modify the Link for their own purposes.
+	
+	\subsection{Disclaimer}
+	Modifying the Link's firmware can lead to system instabilities and possible bricking. While this article does provide documentation for
+	un-bricking any Link manually, these steps require opening the case and \textbf{will void your warranty}.
+	
+	\subsection{Document Format}
+	
+	Colored boxes are placed throughout this document to provide caution and insight to the reader:
+	
+	\whoathere{Read everything in red boxes \textbf{very carefully}.}
+	\note{Take the following information under advisement.}
+	\why{Provides insight into why certain design decisions were made.}
+	\getit{Provides links to documentation and source files.}
+	\novice{A high-level overview of a possibly foreign concept, component, or system. These boxes might also
+	contain links to selected readings.}
+	
+	At the end of every section, I will attempt to provide relevant links to documentation, source code, and other useful references
+	for beginning development with the Link.
+	
+	\section{System Overview}
+	
+	\subsection{Hardware Overview}
+	
+	While this document is primarily aimed at understanding and modifying the Link's software, a basic understanding of
+	the Link's hardware is essential.
+	
+	\begin{figure}[H]
+		\begin{center}
+			\includegraphics[width=\textwidth,height=\textheight,keepaspectratio]{hardware_overview.pdf}
+			\caption{Hardware Overview of the KIPR Link}
+		\end{center}
+	\end{figure}
+	
+	The Link features an ARMv5te CPU and a Spartan 6 FPGA. Both of these chips work in tandem to enable all of the functionality
+	of the Link.
+	
+	\novice{A FPGA, or Field-Programmable Gate Array, is an integrated circuit that can be programmed to perform highly parallel and fast
+	custom logic. FPGAs can be orders of magnitude faster than CPUs for certain types of operations, but are not designed to handle the
+	sequential logic that a CPU would normally perform.}
+	
+	Unfortunately the FPGA is more of a hindrance than a benefit in the current version of the Link. The FPGA was originally added to
+	mediate fast vision processing like the XBC's. Using a USB camera, however, means that the cost of transporting the image data to the
+	FPGA is more expensive than just doing the computation on the CPU. To realize the performance the XBC enjoyed, the camera would need
+	a direct (and preferably non-USB) connection to the FPGA.
+	
+	\subsection{Software Overview}
+	
+	Most of the software in this document was designed and implemented when the Link was still called by its codename: ``Kovan''.
+	
+	\why{Kovan is the name of our hardware designer's bus stop in Singapore. That's all I've got.}
+	
+	\begin{figure}[H]
+		\begin{center}
+			\includegraphics[width=\textwidth,height=\textheight,keepaspectratio]{software_overview.pdf}
+			\caption{Software Overview of the KIPR Link}
+		\end{center}
+	\end{figure}
+	
+	\section{The Software Stack}
+	
+	The Link's full software stack is composed of hundreds of libraries, executables, and configuration files. Fortunately, many of these
+	are not entirely relevant to the discussion of the Link's software components. In this section I will enumerate the important libraries
+	and executables to understand, provide notes on their implementation, provide examples of their usage, and describe how a developer
+	might go about modifying these packages.
+	
+	\subsection{The \texttt{kovan-serial} Daemon}
+	The \texttt{kovan-serial} daemon mediates all incoming connections to the Link over USB and Wi-Fi.
+	
+	\subsubsection{Notes on Using the USB Micro Port}
+	The kernel driver used for the USB Micro port on the Link (\texttt{otg\_serial}) is unfortunately very buggy with the Link's hardware.
+	If the USB cable is ever physically disconnected and then subsequently reconnected to the Link, the kernel driver enters an error state
+	that \emph{can not be directly detected}. Attempting to read or write data while in this error state will eventually lead to the kernel
+	driver locking up, which can not be fixed without power cycling the device. After much experimentation, it was discovered that this error
+	state can be indirectly detected by attempting to \texttt{write} an array of size zero to the open USB file descriptor at semi-frequent
+	intervals (\texttt{kovan-serial} checks every two seconds). If \texttt{write} fails and sets \texttt{errno} to \texttt{EIO}, close the
+	file descriptor and re-open it. It should be noted that \texttt{read} \emph{will not return any error} other than setting \texttt{errno} to 
+	\texttt{EAGAIN} (An error that means there was no data ready to read, but that the connection is still good), even though attempting to read once
+	the error state is entered could eventually result in the kernel driver locking up.
+	
+	
+	\subsection{\texttt{libkovan}}
+	\texttt{libkovan} is the most important library on the Link. It is designed to implement and/or expose every piece of functionality a
+	user would expect from a robotics controller. This includes, but is not limited to:
+	\begin{itemize}
+		\setlength{\itemsep}{0em}
+		\item Motor actuation
+		\item Servo actuation
+		\item Camera perception
+		\item AR.Drone communication
+		\item iRobot Create communication
+		\item High-level threading routines
+		\item Simple key/value configuration files
+		\item Data collection and export
+		\item Utility functions
+	\end{itemize}
+	
+	\getit{\url{http://github.com/kipr/libkovan}}
+	
+	\subsection{\texttt{libkar}}
+	\texttt{libkar} (LIBKissARchive) is an extremely simple Qt-based archive format used to store and transport data in KISS IDE and its targets
+	(including, but not limited to, the Link.) \texttt{libkar} is implemented as a flat key/value dictionary with methods to treat the
+	keys as a two-dimensional tree structure when useful. This dictionary is then serialized to 
+	
+	\novice{\emph{Serialization} is a fancy term for taking a data structure like a color, time, or image and converting it into an array of bytes
+	that can be either stored on a disk or transferred to another computer via a serial connection. Serialization is reversed using \emph{deserialization}.}
+	
+	(needs cleaning up)
+	For more information on how the data is serialized, please see: http://qt-project.org/doc/qt-4.8/datastreamformat.html
+	
+	\getit{\url{http://github.com/kipr/libkar}}
+	\subsection{\texttt{pcompiler}}
+	\texttt{pcompiler} (short for precedence compiler) is a library that automatically attempts to produce executables from a set of input files.
+	\texttt{pcompiler} uses file suffix precedence to create a weak build ordering, and then applies \emph{transforms} to mutate the input into an
+	output. For example, given the files: \texttt{main.c}, \texttt{functions.h}, and \texttt{functions.c}, \texttt{pcompiler} will generate the 
+	following transforms (herein denoted by a $\rightarrow$): 
+	
+	\begin{enumerate}
+		\item \{\texttt{functions.h}\} $\rightarrow \emptyset $ (\texttt{passthrough} transform)
+		\item \{\texttt{functions.c}, \texttt{main.c}\} $\rightarrow $ \{\texttt{functions.c.o}, \texttt{main.c.o}\}  (\texttt{c} transform)
+		\item \{\texttt{functions.c.o}, \texttt{main.c.o}\} $ \rightarrow $ \{\texttt{a.out}\} (\texttt{o} transform)
+	\end{enumerate}
+	
+	\novice{The C language goes through three build phases: preprocess, compile, and link. The preprocess step takes macros like \texttt{\#include "file.h"} and replaces them with the specified file before passing the \texttt{.c} files to the compiler. The compiler generates \texttt{.o} (\emph{object files)} from the \texttt{.c} files. Object files are linked together to create an executable (the default executable name on linux is \texttt{a.out})}
+	
+	The \texttt{passthrough} transform is used to retain files in the build directory but remove them from the compilation set. Since \texttt{.h} files
+	are handled by the \texttt{.c} compiler, there is no need for pcompiler to consider them further. \texttt{pcompiler} expects to only produce one
+	output file (or \emph{terminal}), which means keeping the \texttt{.h} around would result in a failed compilation.
+	
+	\why{While most advanced programmers would prefer to use a \texttt{Makefile} or other build system for their code, the syntax of these files
+	are often esoteric and distract from mastering the basics of programming. Since the KIPR Link's target audience is middle and high school
+	students, the decision was made to avoid manual build systems altogether}.
+	\getit{\url{http://github.com/kipr/pcompiler}}
+	\subsection{\texttt{botui}}
+	
+	\texttt{botui} is the graphical user interface the user is presented upon starting a Link. \texttt{botui} focuses on four primary tasks: Sensor visualization, simple motor/servo control, device configuration, and, perhaps most importantly, managing user programs.
+	\getit{\url{http://github.com/kipr/botui}}
+	\subsection{\texttt{kovan-kmod}}
+	\texttt{kovan-kmod} is a kernel module that mediates communication between \texttt{libkovan} instances and the FPGA. The chosen IPC
+	mechanism was UDP, as UDP allows full duplex communication and avoid the synchronization headaches of other IPC mechanisms.
+	
+	\getit{\url{http://github.com/kipr/kovan-kmod}}
+	\subsection{\texttt{kovan-recovery}}
+	Recovery mode is a special boot mode that is used to perform firmware upgrades and recover semi-bricked devices.
+	To understand  \texttt{kovan-recovery}, it is first necessary to understand the boot process of the Link and the initialization process of linux.
+	The Link uses a custom Master Boot Record (MBR) initially designed by Chumby Industries for the Chumby. (cite) This custom MBR
+	contains two linux kernels: One regular kernel and one special recovery kernel. It is important to reiterate that these kernels \emph{are not} 
+	stored on the device's filesystem, but instead directly in the MBR. The process of booting a linux kernel goes something like this:
+	\begin{enumerate}
+		\item Load the kernel into RAM.
+		\item The kernel then builds what is called an \texttt{initramfs} and executes a process called \texttt{init}. \texttt{initramfs} contains
+		an extremely minimal filesystem that is used by the \texttt{init} process. The idea behind an \texttt{initramfs} is that certain operations
+		that don't belong in the kernel can be executed before the main filesystem is loaded. For example, imagine the case in which a filesystem
+		is encrypted. Linux doesn't know how to use an encrypted filesystem, so a developer could design an \texttt{initramfs} that loads the
+		correct keys, decrypts the filesystem, and then continues the boot process. It should be noted that the \texttt{initramfs} is actually
+		compiled \emph{directly into} the kernel itself.
+		\item The real root filesystem is loaded and initialization of the system continues.
+	\end{enumerate}
+	
+	\texttt{kovan-recovery} takes advantage of \texttt{initramfs} to ``hijack'' the boot process before a root filesystem is mounted. This detail is
+	important, as \texttt{kovan-recovery} works by overwriting the entire internal SD card. Since the SD card is being overwritten, it can not be used
+	as a root filesystem. Since \texttt{kovan-recovery} and linux exist only in RAM, this is not an issue.
+	
+	As mentioned earlier, the \texttt{initramfs} is compiled directly into the kernel. This means that the Link needs two kernels: One special
+	recovery kernel and one regular kernel. Before the linux kernel is loaded, the side button is checked to see if it is pressed down. If it is,
+	the special kernel is loaded instead of the regular one.
+	
+	\texttt{kovan-recovery} itself is an extremely simple C program that uses \texttt{zlib} and basic file i/o to inflate and subsequently write
+	to the internal drive. Since including libraries in the \texttt{initramfs} is burdensome, \texttt{kovan-recovery} performs double-buffered
+	drawing directly to the \texttt{/dev/fb} LCD frame-buffer, using an extremely simple bitmapped font to perform font rendering.
+	
+	\novice{Unix represents almost every installed device as a special type of file in the \texttt{/dev} directory. This means that
+	a developer can open a device and write to it like it was a file. As noted above, \texttt{kovan-recovery} opens the LCD as a file and
+	writes pixels at certain offsets that correspond to onscreen (x, y) locations. This concept is applied in several places throughout the system, and is important to understand.}
+	\getit{\url{http://github.com/kipr/kovan-recovery}}
+	
+	\subsection{KISS IDE}
+	An elementary understanding of KISS IDE 4's architecture is important for modifying and extending the Link.
+	
+	\begin{figure}[H]
+		\begin{center}
+			\includegraphics[width=\textwidth]{kiss_ide.pdf}
+			\caption{A Hypothetical Runtime Snapshot of KISS IDE}
+		\end{center}
+	\end{figure}
+	
+	Two of the core concepts in KISS IDE are that of the \texttt{Interface} and \texttt{Target}. \texttt{Interface}s encapsulate
+	the the discovery, enumeration, and creation of \texttt{Target}s for a specific device. A \texttt{Target} is used to \emph{download},
+	\emph{compile}, \emph{run}, and perform other operations on a connected device. Another core concept in KISS IDE is that of the
+	\texttt{Unit}. A \texttt{Unit} is an abstract class that uses the visitor pattern to create in-memory project and source file archives.
+	For example, imagine the existence of a project called ``Task1'' that contains three source files: \texttt{foo.c}, \texttt{bar.h}, and 
+	\texttt{baz.c}. 
+	Now imagine that the user invokes a \emph{download} command on the source file \texttt{foo.c}. \texttt{foo.c} will ask that its 	\texttt{Unit} invoke a \emph{download} command on the top-level \texttt{Unit}, which is Task1. Task1's unit will then create an empty archive,
+	add project files to it, and \emph{visit} its children \texttt{Unit}s recursively. A child \texttt{Unit} may then add its required files
+	to the archive. Once this recursive process finishes, the completed archive is sent wrapped in a \texttt{CommunicationEntry} and queued in
+	the \texttt{CommunicationManager}. The \texttt{CommunicationManager} then handles non-blocking execution of the task on the given target.
+	
+	
+	The most important thing to note here is that KISS IDE \emph{does not} compile source files locally when communicating with a Link.
+	A \emph{compile} command results in the following chain of actions:
+	\begin{enumerate}
+		\setlength{\itemsep}{0em}
+		\item Download the source archive to the Link
+		\item Request a remote compilation on the Link.
+		\item The Link extracts the archive to a temporary directory
+		\item The Link invokes pcompiler on the directory and blocks until
+		the compilation is completed.
+		\item KISS IDE then receives these results from the Link.
+		\item Results are formatted, highlighted, and then presented to the user.
+	\end{enumerate}
+	
+	\why{While compile time is negatively influenced by this methodology, there are several notable advantages:
+	\begin{itemize}
+		\setlength{\itemsep}{0em}
+		\item A firmware exposing new APIs on the Link doesn't require a new version of KISS IDE. This was a large problem
+		with the CBCv2 robotics controller.
+		\item KISS IDE can work without a local compiler.
+		\item The archive format is language neutral, which means languages can be added or removed without
+		changing KISS IDE (although syntax highlighting might not work).
+	\end{itemize}}
+	
+	\getit{\url{http://github.com/kipr/kiss}}
+	\section{Building Firmwares and Packages}
+	There is unfortunately no easy way to build firmwares and packages for the Link at this time. This section will, however, describe how
+	to do it the hard way (and the way KIPR does it internally). The Link is based off of a linux distribution system called \emph{OpenEmbedded}
+	and its associated build system called \emph{bitbake}. While these tools have improved dramatically in recent months and years, the Link's
+	build system has not been updated yet. As such, there will be little to no relevant documentation available to assist in the creation
+	of packages or firmwares, and most software available in OpenEmbedded's local repository will be outdated. Fortunately, KIPR has shed most of
+	the tears of frustration on the reader's behalf. What follows is a guide on setting up a build server and modifying pieces of KIPR's software.
+	
+	\subsection{Prerequisites}
+	\note{These instructions require a good amount of experience with linux and distributed version control systems. If you haven't had
+	any experience with those, it is recommended you gain knowledge of them \emph{before} rather than \emph{during} this process.}
+	
+	The following software and hardware is necessary for setting up a Link-compatible OpenEmbedded build server (herein referred to as
+	\emph{the host}):
+	
+	\begin{enumerate}
+		\setlength{\itemsep}{0em}
+		\item A computer or virtual machine running a \emph{clean install} of the latest Ubuntu Linux. This computer or virtual machine must have:
+		\begin{enumerate}
+			\setlength{\itemsep}{0em}
+			\item At least 150 GB of free space (though 300 GB or more is preferred).
+			\item At least 4 GB of RAM. KIPR uses 16 GB of RAM.
+			\item At least a quad-core CPU. KIPR uses a six-core AMD CPU, but a newer Intel quad-core
+			chip would probably be more performant.
+			\item A broadband internet connection.
+		\end{enumerate}
+		\item Knowledge of the \texttt{git} version control system.
+		\item Fluent in basic and moderately complex linux terminal commands.
+	\end{enumerate}
+	
+	Once Ubuntu Linux has been installed on the host:
+	
+	\texttt{
+\$ sudo apt-get install git subversion binutils
+	}
+	
+	\textbf{Insert Clemens' instructions once they are ready}
+	
+	\subsection{Modifying an Existing Package}
+	
+	First, change the working directory to \texttt{oe} using \texttt{\$ cd oe}. Once inside the \texttt{oe} directory, source in the build
+	environment using the command \texttt{\$ . $\sim$/.oe/environment-oecore}. This step must be done every time a new terminal is used.
+	
+	To tell bitbake to pull new code from a given package's repository, the PR version of the package must be incremented. For example,
+	to increment the PR version of botui using vim, one could do the following:
+	
+	\noindent \texttt{\$ vim sources/meta-kipr/recipes-kovan/botui/botui\_git.bb} \\
+	\noindent Then enter the characters: \texttt{?}, \texttt{P}, \texttt{R}, \texttt{[Enter]}, \texttt{Ctrl-A}, \texttt{:}, \texttt{w}, \texttt{q}, \texttt{[Enter]}.
+	
+	\novice{Vim is an advanced text editor that can be used to modify files in a terminal. The first part of this command is \texttt{?PR[Enter]}.
+	This tells vim to find the first occurrence of the string ``PR'' in the text file and move the cursor to it. \texttt{Ctrl-A} tells vim to
+	find the next integer (in this case the PR number) and increment it by 1. Finally, \texttt{:wq[Enter]} tells vim to write its changes to disk
+	and then quit.}
+	
+	Now, rebuild the package using \texttt{\$ bitbake botui}
+	
+	
+	\subsection{A Custom Package}
+	
+	\subsection{Debugging Bitbake Errors}
+	Bitbake will sometimes simply fail with a message containing the word ``ERROR''. Since there are thousands of things ``ERROR'' could
+	mean, this will often leave the developer scratching their heads in frustration. I have discovered, however, that most of these ``ERROR''
+	messages with zero information are often the result of a syntax error in a \texttt{.bb} package file. As such, it is strongly recommended
+	that developers incrementally test changes to their \texttt{.bb} files. If that doesn't help, the developer will need to go through their
+	recently modified \texttt{.bb} files and temporally remove them from the repository to check if that file is indeed the problem. Once the
+	problematic file has been identified, comment out portions of the file to determine wherein the error lies.
+	
+	\subsection{Installing Packages and Building Firmwares}
+	OpenEmbedded will automatically generate package files that are installable on the Link using a flash drive and terminal.
+	
+	\subsection{Developing Without a Build Server}
+	Several of the aforementioned software packages will compile and run on a regular computer.
+	
+	\section{Essential Tools for Working with the Link}
+	
+	\subsection{Secure Shell (SSH)}
+	\note{As of firmware 1.9.8, \texttt{botui} sets the root's password to the password configured in
+	Home$\rightarrow$Settings$\rightarrow$Communication.}
+	
+	\texttt{ssh} allows root-level access to the Link over a Wi-Fi connection and is often the most convenient method of
+	modifying the device. First connect the Link to a Wi-Fi network.
+	
+	\subsection{\texttt{opkg} Package Manager}
+	The Link's default package manager is called \texttt{opkg}. \texttt{opkg} can be used to install packages built using
+	a Link build server.
+	
+	\section{Modification Checklists}
+	This section hopes to provide checklists for certain modifications that would need to be implemented
+	
+	
+	\section{Integrating a New Language with the Link}
+	
+	\
+	
+	\section{Conclusion}
+	
+	
+	
+	\subsection{Acknowledgements}
+	\begin{itemize}
+		\setlength{\itemsep}{0em}
+		\item Thank you to Nafis Zaman for his contributions to \texttt{botui} and KISS IDE.
+		\item Thank you to Clemens Koza for his efforts in creating reliable instructions for setting up a build server from scratch.
+		\item Thank you to the users that have coped with the early instabilities of the new system.
+	\end{itemize}
+
+	
+	\section{Appendix}
+	
+	\subsection{Manually Un-bricking a Link}
+	\noindent \textbf{These steps will void your warranty.}
+	
+	\noindent If the Link fails to boot to standard mode or recovery mode, these steps can be used to manually flash the internal micro-SD card. The following steps require a Torx screwdriver, a micro-SD card reader (or SD card reader and adapter), and an Operating System supporting \texttt{dd} (*nix or Mac OS X).
+	
+	\begin{enumerate}
+		\setlength{\itemsep}{0em}
+		\item Remove the warranty sticker from the Link's case.
+		\item Remove the four bottom screws using a Torx screwdriver.
+		\item Locate the micro-SD card hinge (by the power switch).
+		\item Push the hinge towards the inside of the case and lift up.
+		\item Place the recovered micro-SD card in card reader.
+		\item The OS will probably auto-mount the contents of the drive and
+		possibly display some error messages. Ignore these error messages and
+		unmount the SD card if auto-mounted.
+		\item Determine the appropriate device file to write to in \texttt{/dev}.
+		This can easily be determined by removing the card,
+		running \texttt{\$ ls /dev > 1}, inserting the card again, 
+		and running \texttt{\$ ls /dev > 2 \&\& diff 1 2}. The correct
+		device file will not have any numerical suffix.
+		\item Download the KIPR Link firmware file to install.
+		\item Extract the KIPR Link firmware file using \texttt{gunzip}.
+	\end{enumerate}
+	
+	\whoathere{Triple check that the determined device file is indeed the micro-SD card.
+	Choosing the wrong device file could overwrite your hard drive disk!}
+	
+	\noindent Finally, \texttt{\$ sudo dd if=firmware\_file.img of=/dev/determined\_device\_file bs=1M}
+		(the M might be lowercase on your platform).
+	
+	\vspace{\fill}
+	\noindent {\small This document was compiled on \today.}
+	
+\end{document}

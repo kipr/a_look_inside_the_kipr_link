@@ -1,0 +1,43 @@
+
+digraph hardware_overview {
+	overlap=scale;
+	splines=spline;
+	ratio=auto;
+	normalize=true;
+	
+	node [shape=box];
+	
+	"USB Controller" -> CPU [dir=both];
+	"BackEMF ADC" -> FPGA [label=I2C];
+	"3-Axis Accelerometer" -> CPU [label=I2C];
+	"Wi-Fi Card" -> "USB Controller" [dir=both];
+	
+	CPU -> FPGA [label="SPI" dir=both len=0.7];
+	
+	CPU -> "USB Micro" [dir=both];
+	
+	"Input ADC" -> FPGA [label=I2C];
+	
+	"Mass Storage" -> "USB Controller" [dir=both];
+	Mouse -> "USB Controller";
+	Keyboard -> "USB Controller";
+	Camera -> "USB Controller";
+
+	FPGA -> LCD;
+	Touchscreen -> CPU;
+	"Side Button" -> FPGA;
+	"Monitor / TV" -> FPGA [label="HDMI" dir=both];
+	
+	FPGA -> Motors;
+	FPGA -> Servos;
+	Digitals -> FPGA [dir=both];
+	Analogs -> "Input ADC";
+	Motors -> "BackEMF ADC";
+	
+	"Serial Port" -> CPU
+	FPGA -> "IR Emitter"
+	"Battery Voltage" -> FPGA
+	"IR Receiver" -> CPU
+	
+	CPU -> Speaker
+}
