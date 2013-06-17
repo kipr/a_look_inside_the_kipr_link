@@ -101,7 +101,7 @@
 	Unfortunately the FPGA is more of a hindrance than a benefit in the current version of the Link. The FPGA was originally added to
 	mediate fast vision processing like the XBC's. Using a USB camera, however, means that the cost of transporting the image data to the
 	FPGA is more expensive than just doing the computation on the CPU. To realize the performance the XBC enjoyed, the camera would need
-	a direct (and preferably non-USB) connection to the FPGA.
+	a direct (and preferably non-USB) connection to the FPGA. \textbf{Write More}.
 	
 	\subsection{Software Overview}
 	
@@ -115,6 +115,8 @@
 			\caption{Software Overview of the KIPR Link}
 		\end{center}
 	\end{figure}
+	
+	\textbf{Write More}.
 	
 	\section{The Software Stack}
 	
@@ -137,13 +139,14 @@
 	\end{enumerate}
 	
 	\subsubsection{Authentication Handshake}
-	\texttt{libkovanserial} uses XOR encryption with a mutual shared session key that is negotiated during handshake. XOR encryption is notoriously insecure with plain text, 
-	but the use of random data paired with cryptographically secure data makes normal XOR encryption attack vectors useless. Since the session key is a pseudo-randomly generated
-	512 bits and sessions are short lived, cracking the session key with brute force is unlikely. \texttt{libkovanserial} also goes a step further and fills empty space in
-	packets with pseudo-random bytes. This prevents sniffers from detecting the key using zeroed-out sections of packets. This handshake method guards against
-	man-in-the-middle attacks and other sniffers by XOR encrypting the session key during transmission using a private but mutual piece of information:
-	\texttt{sha1(password)}. Since the session key is 512 pseudo-random bits and the SHA1 key is a cryptographically strong hash, decoding either piece
-	of information is unlikely. A new session key is generated with every high-level command to the Link, so a
+	\texttt{libkovanserial} uses XOR encryption with a mutual shared session key that is negotiated during handshake. XOR encryption
+	is notoriously insecure with plain text, but the use of random data paired with cryptographically secure data makes normal XOR
+	encryption attack vectors useless. Since the session key is a pseudo-randomly generated 512 bits and sessions are short lived,
+	cracking the session key with brute force is unlikely. \texttt{libkovanserial} also goes a step further and fills empty space in
+	packets with pseudo-random bytes. This prevents sniffers from detecting the key using zeroed-out sections of packets. This handshake
+	method guards against man-in-the-middle attacks and other sniffers by XOR encrypting the session key during transmission using a private
+	but mutual piece of information: \texttt{sha1(password)}. Since the session key is 512 pseudo-random bits and the SHA1 key is a cryptographically
+	strong hash, decoding either piece of information is unlikely. A new session key is generated with every high-level command to the Link, so a
 	session key does not remain valid for more than a few seconds.
 	
 	\subsubsection{Handshake Example}
@@ -354,7 +357,7 @@
 	\textbf{Insert Clemens' instructions once they are ready}
 	
 	\subsection{Core Concepts in OpenEmbedded and \texttt{bitbake}}
-	OpenEmbedded organizes build \emph{recipes} into ``meta'' \emph{layers}. 
+	OpenEmbedded organizes build \emph{recipes} into ``meta'' \emph{layers}.  \textbf{Write More}.
 	
 	\subsection{Modifying an Existing Package}
 	
@@ -372,8 +375,11 @@
 	find the next integer (in this case the PR number) and increment it by 1. Finally, \texttt{:wq[Enter]} tells vim to write its changes to disk
 	and then quit.}
 	
-	Now, rebuild the package using \texttt{\$ bitbake botui}
+	Now, rebuild the package using \texttt{\$ bitbake botui}.
 	
+	If this command completes successfully or with only warnings, congratulations! An installable package file was created
+	and deposited in the \texttt{build/tmp-*/deploy/ipk/armv5te} directory! For installation instructions, see the section
+	documenting \texttt{opkg}.
 	
 	\subsection{A Custom Package}
 	
@@ -386,23 +392,24 @@
 	problematic file has been identified, comment out portions of the file to determine wherein the error lies.
 	
 	\subsection{Installing Packages and Building Firmwares}
-	OpenEmbedded will automatically generate package files that are installable on the Link using a flash drive and terminal.
+	OpenEmbedded will automatically generate package files that are installable on the Link using a flash drive and terminal. \textbf{Write More}.
 	
 	\subsection{Developing Without a Build Server}
-	Several of the aforementioned software packages will compile and run on a regular computer.
+	Several of the aforementioned software packages will compile and run on a regular computer. \textbf{Write More}.
 	
 	\section{Essential Tools for Working with the Link}
+	 \textbf{Write More}.
 	
 	\subsection{Secure Shell (SSH)}
 	\note{As of firmware 1.9.8, \texttt{botui} sets the root's password to the password configured in
 	Home$\rightarrow$Settings$\rightarrow$Communication.}
 	
 	\texttt{ssh} allows root-level access to the Link over a Wi-Fi connection and is often the most convenient method of
-	modifying the device. First connect the Link to a Wi-Fi network.
+	modifying the device. First connect the Link to a Wi-Fi network. \textbf{Write More}.
 	
 	\subsection{\texttt{opkg} Package Manager}
 	The Link's default package manager is called \texttt{opkg}. \texttt{opkg} can be used to install packages built using
-	a Link build server.
+	a Link build server. \textbf{Write More}.
 	
 	\section{Modification Checklists}
 	When creating a component for the Link, there are often several steps that are often obscure and non-obvious. These checklists
@@ -435,8 +442,8 @@
 	
 	
 	\section{Conclusion}
-	While this document covers several pieces of the Link's firmware
-	
+	While this document covers several pieces of the Link's firmware and attempts to give context to certain features, it is by no means
+	comprehensive. If you have any questions or concerns, please feel free to contact the authors for more information. \textbf{Write More}.
 	
 	\subsection{Acknowledgements}
 	\begin{itemize}
